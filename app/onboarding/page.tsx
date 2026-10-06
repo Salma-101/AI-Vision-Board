@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Sparkles, ArrowRight, ArrowLeft, Loader2, Lightbulb } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
@@ -29,6 +29,20 @@ const examples = [
 ];
 
 export default function OnboardingPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      }
+    >
+      <OnboardingContent />
+    </Suspense>
+  );
+}
+
+function OnboardingContent() {
   const router = useRouter();
   const { user, loading } = useAuth();
   const [text, setText] = useState('');
