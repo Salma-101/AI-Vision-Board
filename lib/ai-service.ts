@@ -8,18 +8,6 @@ interface VisualConceptResult {
   concepts: VisualConcept[];
 }
 
-const CATEGORY_KEYWORDS: Record<GoalCategory, string[]> = {
-  career: ['job', 'career', 'work', 'company', 'startup', 'business', 'engineer', 'developer', 'manager', 'promotion', 'interview', 'resume', 'salary', 'profession', 'office', 'leadership', 'ceo', 'founder', 'graduation', 'graduate', 'degree'],
-  finance: ['money', 'finance', 'financial', 'invest', 'investment', 'savings', 'wealth', 'rich', 'income', 'passive', 'dividend', 'stock', 'budget', 'debt', 'retire', 'retirement', 'independent', 'freedom'],
-  travel: ['travel', 'trip', 'visit', 'country', 'city', 'vacation', 'holiday', 'explore', 'world', 'abroad', 'destination', 'seoul', 'tokyo', 'paris', 'bali', 'japan', 'korea', 'europe', 'thailand', 'adventure'],
-  home: ['home', 'house', 'apartment', 'condo', 'living', 'space', 'interior', 'design', 'decor', 'room', 'kitchen', 'garden', 'furniture', 'renovation', 'property'],
-  wellness: ['health', 'wellness', 'fitness', 'exercise', 'gym', 'meditation', 'yoga', 'mental', 'sleep', 'diet', 'nutrition', 'run', 'marathon', 'weight', 'mindful', 'self-care', 'wellbeing'],
-  learning: ['learn', 'learning', 'study', 'course', 'book', 'read', 'reading', 'skill', 'language', 'certification', 'master', 'degree', 'university', 'course', 'education', 'knowledge'],
-  hobbies: ['hobby', 'hobbies', 'paint', 'painting', 'music', 'guitar', 'piano', 'photography', 'writing', 'blog', 'cook', 'cooking', 'baking', 'craft', 'garden', 'pottery', 'draw', 'drawing'],
-  lifestyle: ['lifestyle', 'minimal', 'simplify', 'routine', 'habit', 'journal', 'morning', 'evening', 'balance', 'quality', 'simple', 'slow', 'intentional', 'purpose', 'meaningful'],
-  other: [],
-};
-
 const VISUAL_PROMPTS: Record<GoalCategory, string[]> = {
   career: [
     'A sleek modern desk setup with multiple monitors showing code, warm ambient lighting, glass office overlooking a city skyline at dusk',
@@ -68,79 +56,46 @@ const VISUAL_PROMPTS: Record<GoalCategory, string[]> = {
   ],
 };
 
-function detectCategory(text: string): GoalCategory {
-  const lower = text.toLowerCase();
-  const scores: Record<string, number> = {};
-
-  for (const [category, keywords] of Object.entries(CATEGORY_KEYWORDS)) {
-    scores[category] = 0;
-    for (const keyword of keywords) {
-      if (lower.includes(keyword)) {
-        scores[category] += 1;
-      }
-    }
-  }
-
-  let bestCategory: GoalCategory = 'other';
-  let bestScore = 0;
-
-  for (const [category, score] of Object.entries(scores)) {
-    if (score > bestScore) {
-      bestScore = score;
-      bestCategory = category as GoalCategory;
-    }
-  }
-
-  return bestCategory;
-}
-
-function splitGoals(text: string): string[] {
-  const parts = text
-    .split(/[,;.]|\band\b/i)
-    .map((p) => p.trim())
-    .filter((p) => p.length > 3);
-  return parts.length > 0 ? parts : [text.trim()];
-}
-
-function generateTitle(fragment: string): string {
-  const words = fragment.trim().split(/\s+/);
-  if (words.length <= 6) {
-    return words.map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-  }
-  const keyWords = words.filter((w) => !['the', 'a', 'an', 'to', 'and', 'or', 'of', 'in', 'for', 'with', 'my', 'i', 'want'].includes(w.toLowerCase()));
-  return keyWords.slice(0, 5).map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-}
-
 function pickPrompt(category: GoalCategory, seed: number): string {
   const prompts = VISUAL_PROMPTS[category];
   return prompts[seed % prompts.length];
 }
 
-function determinePriority(index: number, total: number): 'low' | 'medium' | 'high' {
-  if (total <= 2) return 'high';
-  if (index === 0) return 'high';
-  if (index < Math.ceil(total / 2)) return 'medium';
-  return 'low';
+export class GeminiParseError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'GeminiParseError';
+  }
 }
 
 export async function parseGoalsFromText(text: string): Promise<GoalParseResult> {
-  await new Promise((resolve) => setTimeout(resolve, 1200));
-
-  const fragments = splitGoals(text);
-  const goals: ParsedGoal[] = fragments.map((fragment, index) => {
-    const category = detectCategory(fragment);
-    const title = generateTitle(fragment);
-    const priority = determinePriority(index, fragments.length);
-    const prompt = pickPrompt(category, index);
-
-    return {
-      category,
-      title,
-      description: fragment,
-      priority,
-      visual_prompt: prompt,
-    };
+  const response = await fetch('/api/ai/parse-goals', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ input: text }),
   });
+
+  if (!response.ok) {
+    let message = 'Failed to parse goals';
+    try {
+      const errorBody = await response.json();
+      if (errorBody?.error) {
+        message = errorBody.error;
+      }
+    } catch {
+      // response had no JSON body; use default message
+    }
+    throw new GeminiParseError(message);
+  }
+
+  const data = await response.json();
+  const goals: ParsedGoal[] = (data.goals as ParsedGoal[]).map((g) => ({
+    category: g.category,
+    title: g.title,
+    description: g.description,
+    priority: g.priority,
+    visual_prompt: g.visual_prompt,
+  }));
 
   return { goals };
 }

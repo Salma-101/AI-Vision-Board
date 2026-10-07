@@ -4,7 +4,7 @@ import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Sparkles, ArrowRight, ArrowLeft, Loader2, Lightbulb } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
-import { parseGoalsFromText } from '@/lib/ai-service';
+import { parseGoalsFromText, GeminiParseError } from '@/lib/ai-service';
 import { createBoard, createGoals } from '@/lib/db';
 import { ParsedGoal } from '@/lib/types';
 import { Button } from '@/components/ui/button';
@@ -47,6 +47,7 @@ function OnboardingContent() {
   const { user, loading } = useAuth();
   const [text, setText] = useState('');
   const [parsing, setParsing] = useState(false);
+  const [parseError, setParseError] = useState<string | null>(null);
   const [parsedGoals, setParsedGoals] = useState<ParsedGoal[] | null>(null);
   const [boardId, setBoardId] = useState<string | null>(null);
   const searchParams = useSearchParams();
@@ -70,6 +71,7 @@ function OnboardingContent() {
       return;
     }
     setParsing(true);
+    setParseError(null);
     try {
       let currentBoardId = boardId;
       if (!currentBoardId) {
@@ -86,7 +88,10 @@ function OnboardingContent() {
       const result = await parseGoalsFromText(text);
       setParsedGoals(result.goals);
     } catch (err) {
-      toast.error('Something went wrong. Please try again.');
+      const message = err instanceof GeminiParseError
+        ? err.message
+        : 'Something went wrong. Please try again.';
+      setParseError(message);
     }
     setParsing(false);
   };
@@ -172,6 +177,12 @@ function OnboardingContent() {
                 </button>
               ))}
             </div>
+
+            {parseError && (
+              <div className="mt-4 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                {parseError}
+              </div>
+            )}
 
             <div className="mt-8 flex justify-end">
               <Button onClick={handleParse} disabled={parsing || text.trim().length < 10} size="lg" className="gap-2">
