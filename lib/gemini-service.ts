@@ -52,27 +52,38 @@ Rules:
 - Priority must be an integer from 1 (lowest) to 5 (highest).
 - Output ONLY the JSON object, no markdown, no explanation.`;
 
+const PRIMARY_MODEL = 'gemini-3.8-flash';
+const FALLBACK_MODEL = 'gemini-3.1-flash-lite';
+
 export interface ParsedGoalResult {
   goals: GeminiGoal[];
 }
 
-export async function parseGoalsWithGemini(userInput: string): Promise<ParsedGoalResult> {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    throw new Error('Gemini API key is not configured');
-  }
+function extractJson(text: string): unknown {
+  const cleaned = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+  return JSON.parse(cleaned);
+}
 
-  const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-
-  const fullPrompt = `${SYSTEM_PROMPT}\n\nUser input:\n${userInput}`;
+async function tryGenerate(
+  genAI: GoogleGenerativeAI,
+  modelName: string,
+  fullPrompt: string,
+): Promise<ParsedGoalResult> {
+  const model = genAI.getGenerativeModel({
+    model: modelName,
+    generationConfig: {
+      temperature: 0.7,
+      topP: 0.95,
+      maxOutputTokens: 4096,
+    },
+  });
 
   const result = await model.generateContent(fullPrompt);
   const text = result.response.text();
 
   let parsed: unknown;
   try {
-    parsed = JSON.parse(text);
+    parsed = extractJson(text);
   } catch {
     throw new Error('Gemini returned malformed JSON');
   }
@@ -83,4 +94,24 @@ export async function parseGoalsWithGemini(userInput: string): Promise<ParsedGoa
   }
 
   return { goals: validation.data.goals };
+}
+
+export async function parseGoalsWithGemini(userInput: string): Promise<ParsedGoalResult> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error('Gemini API key is not configured');
+  }
+
+  const genAI = new GoogleGenerativeAI(apiKey);
+  const fullPrompt = `${SYSTEM_PROMPT}\n\nUser input:\n${userInput}`;
+
+  try {
+    return await tryGenerate(genAI, PRIMARY_MODEL, fullPrompt);
+  } catch (primaryError) {
+    try {
+      return await tryGenerate(genAI, FALLBACK_MODEL, fullPrompt);
+    } catch {
+      throw primaryError;
+    }
+  }
 }
