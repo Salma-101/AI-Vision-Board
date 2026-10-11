@@ -50,6 +50,7 @@ function OnboardingContent() {
   const [parseError, setParseError] = useState<string | null>(null);
   const [parsedGoals, setParsedGoals] = useState<ParsedGoal[] | null>(null);
   const [boardId, setBoardId] = useState<string | null>(null);
+  const [continuing, setContinuing] = useState(false);
   const searchParams = useSearchParams();
 
   useEffect(() => {
@@ -97,7 +98,9 @@ function OnboardingContent() {
   };
 
   const handleContinue = async () => {
-    if (!parsedGoals || !boardId) return;
+    if (!parsedGoals || !boardId || continuing) return;
+
+    setContinuing(true);
 
     const goals = await createGoals(boardId, parsedGoals.map((g) => ({
       category: g.category,
@@ -109,6 +112,7 @@ function OnboardingContent() {
 
     if (goals.length === 0) {
       toast.error('Could not save goals. Please try again.');
+      setContinuing(false);
       return;
     }
 
@@ -237,9 +241,18 @@ function OnboardingContent() {
                 <ArrowLeft className="h-4 w-4" />
                 Edit description
               </Button>
-              <Button onClick={handleContinue} size="lg" className="gap-2">
-                Review goals
-                <ArrowRight className="h-4 w-4" />
+              <Button onClick={handleContinue} disabled={continuing} size="lg" className="gap-2">
+                {continuing ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Saving goals...
+                  </>
+                ) : (
+                  <>
+                    Review goals
+                    <ArrowRight className="h-4 w-4" />
+                  </>
+                )}
               </Button>
             </div>
           </div>

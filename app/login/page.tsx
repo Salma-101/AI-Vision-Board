@@ -19,7 +19,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (!loading && user) {
-      router.push('/dashboard');
+      router.push('/');
     }
   }, [user, loading, router]);
 
@@ -32,7 +32,7 @@ export default function LoginPage() {
     if (error) {
       setError(error);
     } else {
-      router.push('/dashboard');
+      router.push('/');
     }
   };
 
