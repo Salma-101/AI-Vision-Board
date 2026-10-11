@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Sparkles, ArrowRight, ArrowLeft, Plus, Trash2, Pencil, Check, X, Loader2, Wand2, ListChecks, GripVertical } from 'lucide-react';
+import { Sparkles, ArrowLeft, Plus, Trash2, Pencil, Check, X, Loader2, Wand2, ListChecks } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { getGoals, updateGoal, deleteGoal, createGoals, createBoard, getStepsForGoals, createGoalStep, updateGoalStep, deleteGoalStep } from '@/lib/db';
 import { Goal, GoalStep, GoalCategory, GoalPriority, GOAL_CATEGORIES, GOAL_PRIORITIES, CATEGORY_COLORS } from '@/lib/types';
@@ -27,11 +27,6 @@ interface EditState {
   title: string;
   description: string;
   priority: GoalPriority;
-}
-
-interface StepEditState {
-  goalId: string;
-  steps: { id?: string; text: string; completed: boolean; position: number }[];
 }
 
 export default function GoalReviewPage({ params }: { params: { boardId: string } }) {

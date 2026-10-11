@@ -153,7 +153,7 @@ export default function BoardEditorPage({ params }: { params: { boardId: string 
         updateElementProperties(el.id, {
           goalStepCompleted: goalSteps.filter((s) => s.completed).length,
           goalStepTotal: goalSteps.length,
-          goalDescription: goals.find((g) => g.id === el.properties.goalId)?.description ?? el.properties.goalDescription,
+          goalDescription: goals.find((g) => g.id === el.properties.goalId)?.description ?? undefined,
         });
       }
     }
@@ -260,7 +260,7 @@ export default function BoardEditorPage({ params }: { params: { boardId: string 
             goalTitle: goal.title,
             goalCategory: goal.category,
             goalPriority: goal.priority,
-            goalDescription: goal.description,
+            goalDescription: goal.description ?? undefined,
             goalStepCompleted: goalSteps.filter((s) => s.completed).length,
             goalStepTotal: goalSteps.length,
             backgroundColor: '#ffffff',

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useRef, useEffect, useState } from 'react';
-import { Stage, Layer, Rect, Text, Image as KonvaImage, Group, Transformer, Line, Circle } from 'react-konva';
+import { Stage, Layer, Rect, Text, Image as KonvaImage, Group, Transformer, Circle } from 'react-konva';
 import Konva from 'konva';
 import useImage from 'use-image';
 import { BoardElement, CATEGORY_COLORS } from '@/lib/types';
