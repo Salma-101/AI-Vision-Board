@@ -307,6 +307,18 @@ export default function BoardEditorPage({ params }: { params: { boardId: string 
     }
   };
 
+  const handleRenameBoard = async (newTitle: string) => {
+    const trimmed = newTitle.trim();
+    if (!trimmed) return;
+    const success = await updateBoard(boardId, { title: trimmed });
+    if (success) {
+      setBoard((prev) => prev ? { ...prev, title: trimmed } : prev);
+      toast.success('Board renamed');
+    } else {
+      toast.error('Could not rename board.');
+    }
+  };
+
   const handleAddText = () => {
     const maxZ = Math.max(...elements.map((e) => e.z_index), 0);
     addElement({
@@ -420,10 +432,11 @@ export default function BoardEditorPage({ params }: { params: { boardId: string 
     <div className="fixed inset-0 bg-background overflow-hidden">
       <EditorToolbar
         boardTitle={board?.title ?? 'Vision Board'}
-        onBack={() => router.push('/dashboard')}
+        onBack={() => router.back()}
         onSave={handleSave}
         onAddText={handleAddText}
         onAddImage={handleAddImage}
+        onRenameBoard={handleRenameBoard}
         saving={saving}
       />
 

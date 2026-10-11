@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import {
   Undo2,
   Redo2,
@@ -15,6 +16,7 @@ import {
   ArrowLeft,
   Maximize,
   Sparkles,
+  Pencil,
 } from 'lucide-react';
 import { useEditorStore } from '@/lib/editor-store';
 import { BoardElement } from '@/lib/types';
@@ -26,6 +28,7 @@ interface EditorToolbarProps {
   onSave: () => void;
   onAddText: () => void;
   onAddImage: (src: string) => void;
+  onRenameBoard: (newTitle: string) => void;
   saving: boolean;
 }
 
@@ -46,6 +49,7 @@ export default function EditorToolbar({
   onSave,
   onAddText,
   onAddImage,
+  onRenameBoard,
   saving,
 }: EditorToolbarProps) {
   const {
@@ -64,8 +68,24 @@ export default function EditorToolbar({
     panY,
     setPan,
   } = useEditorStore();
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [titleDraft, setTitleDraft] = useState(boardTitle);
 
   const hasSelection = selectedIds.length > 0;
+
+  useEffect(() => {
+    if (!editingTitle) setTitleDraft(boardTitle);
+  }, [boardTitle, editingTitle]);
+
+  const handleSaveTitle = () => {
+    const trimmed = titleDraft.trim();
+    if (trimmed && trimmed !== boardTitle) {
+      onRenameBoard(trimmed);
+    } else {
+      setTitleDraft(boardTitle);
+    }
+    setEditingTitle(false);
+  };
 
   const handleDuplicate = () => {
     if (selectedIds.length > 0) {
@@ -94,7 +114,30 @@ export default function EditorToolbar({
             <div className="flex h-7 w-7 items-center justify-center rounded-md bg-foreground text-background">
               <Sparkles className="h-3.5 w-3.5" />
             </div>
-            <span className="text-sm font-medium truncate max-w-[200px]">{boardTitle}</span>
+            {editingTitle ? (
+              <div className="flex items-center gap-1">
+                <input
+                  value={titleDraft}
+                  onChange={(e) => setTitleDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleSaveTitle();
+                    if (e.key === 'Escape') { setTitleDraft(boardTitle); setEditingTitle(false); }
+                  }}
+                  onBlur={handleSaveTitle}
+                  autoFocus
+                  className="text-sm font-medium bg-transparent border-b border-foreground outline-none max-w-[200px] px-0.5"
+                />
+              </div>
+            ) : (
+              <button
+                onClick={() => { setTitleDraft(boardTitle); setEditingTitle(true); }}
+                className="group flex items-center gap-1.5 text-sm font-medium truncate max-w-[200px] hover:text-primary transition-colors"
+                title="Click to rename"
+              >
+                <span className="truncate">{boardTitle}</span>
+                <Pencil className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+              </button>
+            )}
           </div>
         </div>
 
