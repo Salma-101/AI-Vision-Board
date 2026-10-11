@@ -1,6 +1,6 @@
 'use client';
 
-import { Board, Goal, BoardElement, GeneratedAsset, GenerationJob } from './types';
+import { Board, Goal, GoalStep, BoardElement, GeneratedAsset, GenerationJob } from './types';
 import { supabase } from './supabase-client';
 
 export async function createBoard(title: string, description?: string): Promise<Board | null> {
@@ -101,6 +101,69 @@ export async function deleteGoal(goalId: string): Promise<boolean> {
   const { error } = await supabase.from('goals').delete().eq('id', goalId);
   if (error) {
     console.error('Error deleting goal:', error);
+    return false;
+  }
+  return true;
+}
+
+export async function getGoalSteps(goalId: string): Promise<GoalStep[]> {
+  const { data, error } = await supabase
+    .from('goal_steps')
+    .select('*')
+    .eq('goal_id', goalId)
+    .order('position', { ascending: true });
+  if (error) {
+    console.error('Error fetching goal steps:', error);
+    return [];
+  }
+  return data as GoalStep[];
+}
+
+export async function getStepsForGoals(goalIds: string[]): Promise<Record<string, GoalStep[]>> {
+  if (goalIds.length === 0) return {};
+  const { data, error } = await supabase
+    .from('goal_steps')
+    .select('*')
+    .in('goal_id', goalIds)
+    .order('position', { ascending: true });
+  if (error) {
+    console.error('Error fetching goal steps:', error);
+    return {};
+  }
+  const grouped: Record<string, GoalStep[]> = {};
+  for (const step of data as GoalStep[]) {
+    if (!grouped[step.goal_id]) grouped[step.goal_id] = [];
+    grouped[step.goal_id].push(step);
+  }
+  return grouped;
+}
+
+export async function createGoalStep(goalId: string, text: string, position: number): Promise<GoalStep | null> {
+  const { data, error } = await supabase
+    .from('goal_steps')
+    .insert({ goal_id: goalId, text, position })
+    .select()
+    .single();
+  if (error) {
+    console.error('Error creating goal step:', error);
+    return null;
+  }
+  return data as GoalStep;
+}
+
+export async function updateGoalStep(stepId: string, updates: Partial<Pick<GoalStep, 'text' | 'completed' | 'position'>>): Promise<boolean> {
+  const { error } = await supabase.from('goal_steps').update(updates).eq('id', stepId);
+  if (error) {
+    console.error('Error updating goal step:', error);
+    return false;
+  }
+  return true;
+}
+
+export async function deleteGoalStep(stepId: string): Promise<boolean> {
+  const { error } = await supabase.from('goal_steps').delete().eq('id', stepId);
+  if (error) {
+    console.error('Error deleting goal step:', error);
     return false;
   }
   return true;

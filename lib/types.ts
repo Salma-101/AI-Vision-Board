@@ -59,9 +59,15 @@ export interface BoardElementProperties {
   goalTitle?: string;
   goalCategory?: GoalCategory;
   goalPriority?: GoalPriority;
+  goalDescription?: string;
+  goalProgress?: number;
+  goalStepTotal?: number;
+  goalStepCompleted?: number;
   backgroundColor?: string;
   borderColor?: string;
   padding?: number;
+  paperTexture?: boolean;
+  tapeColor?: string;
 }
 
 export interface BoardElement {
@@ -100,6 +106,17 @@ export interface GenerationJob {
   total: number;
   completed_count: number;
   error: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface GoalStep {
+  id: string;
+  goal_id: string;
+  user_id: string;
+  text: string;
+  completed: boolean;
+  position: number;
   created_at: string;
   updated_at: string;
 }
