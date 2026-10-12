@@ -52,8 +52,8 @@ Rules:
 - Priority must be an integer from 1 (lowest) to 5 (highest).
 - Output ONLY the JSON object, no markdown, no explanation.`;
 
-const PRIMARY_MODEL = 'gemini-3.8-flash';
-const FALLBACK_MODEL = 'gemini-3.1-flash-lite';
+const PRIMARY_MODEL = 'gemini-1.5-flash';
+const FALLBACK_MODEL = 'gemini-1.5-flash-latest';
 
 export interface ParsedGoalResult {
   goals: GeminiGoal[];
@@ -81,16 +81,21 @@ async function tryGenerate(
   const result = await model.generateContent(fullPrompt);
   const text = result.response.text();
 
+  if (!text || text.trim().length === 0) {
+    throw new Error('The AI returned an empty response. Please try again.');
+  }
+
   let parsed: unknown;
   try {
     parsed = extractJson(text);
   } catch {
-    throw new Error('Gemini returned malformed JSON');
+    throw new Error('The AI returned a malformed response. Please try rephrasing your goals.');
   }
 
   const validation = GeminiResponseSchema.safeParse(parsed);
   if (!validation.success) {
-    throw new Error('Gemini response did not match expected schema');
+    const issues = validation.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ');
+    throw new Error(`The AI response did not match the expected format (${issues}). Please try again.`);
   }
 
   return { goals: validation.data.goals };

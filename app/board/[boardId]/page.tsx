@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Loader2, Sparkles, X, ListChecks, Plus, Check, Trash2, Pencil } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { getBoard, getGoals, getBoardElements, saveBoardElements, updateBoard, createGeneratedAsset, createGenerationJob, updateGenerationJob, getStepsForGoals, createGoalStep, updateGoalStep, deleteGoalStep } from '@/lib/db';
-import { generateBoardLayout, generateVisualConcepts } from '@/lib/ai-service';
+import { generateBoardLayout, generateVisualConcepts, searchGoalImages } from '@/lib/ai-service';
 import { Board, Goal, GoalStep, BoardElement, CATEGORY_COLORS } from '@/lib/types';
 import { useEditorStore } from '@/lib/editor-store';
 import BoardCanvas from '@/components/editor/board-canvas';
@@ -76,6 +76,7 @@ export default function BoardEditorPage({ params }: { params: { boardId: string 
   const [saving, setSaving] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [generated, setGenerated] = useState(false);
+  const [genError, setGenError] = useState<string | null>(null);
   const [containerSize, setContainerSize] = useState({ width: 1200, height: 800 });
   const [drawerGoal, setDrawerGoal] = useState<Goal | null>(null);
   const [newStepText, setNewStepText] = useState('');
@@ -165,11 +166,12 @@ export default function BoardEditorPage({ params }: { params: { boardId: string 
       return;
     }
     setGenerating(true);
+    setGenError(null);
 
     try {
       const job = await createGenerationJob(boardId, goals.length);
 
-      const layout = await generateBoardLayout(
+      const layout = generateBoardLayout(
         goals.map((g) => ({
           id: g.id,
           category: g.category,
@@ -178,7 +180,7 @@ export default function BoardEditorPage({ params }: { params: { boardId: string 
         }))
       );
 
-      const concepts = await generateVisualConcepts(
+      const concepts = generateVisualConcepts(
         goals.map((g) => ({
           id: g.id,
           category: g.category,
@@ -195,13 +197,23 @@ export default function BoardEditorPage({ params }: { params: { boardId: string 
         const layoutItem = layout.goals.find((l) => l.id === goal.id);
         if (!layoutItem) continue;
 
-        const categoryImages = STOCK_IMAGES_BY_CATEGORY[goal.category] || STOCK_IMAGES_BY_CATEGORY.other;
-        const imageUrl = categoryImages[i % categoryImages.length];
+        const searchQuery = concepts.concepts[i]?.prompt || goal.visual_prompt || goal.title;
+        let imageUrl: string;
+        try {
+          const result = await searchGoalImages(searchQuery, goal.category);
+          imageUrl = result.images[0]?.url || '';
+        } catch {
+          throw new Error('Failed to search for images. Please try again.');
+        }
+
+        if (!imageUrl) {
+          throw new Error(`No images found for goal: ${goal.title}`);
+        }
 
         const asset = await createGeneratedAsset({
           goal_id: goal.id,
-          prompt: concepts.concepts[i]?.prompt || goal.visual_prompt || '',
-          model: 'mock',
+          prompt: searchQuery,
+          model: 'pexels-search',
           storage_url: imageUrl,
           category: goal.category,
         });
@@ -288,7 +300,9 @@ export default function BoardEditorPage({ params }: { params: { boardId: string 
 
       toast.success(`Generated ${goals.length} visual elements!`);
     } catch (err) {
-      toast.error('Generation failed. Please try again.');
+      const message = err instanceof Error ? err.message : 'Generation failed. Please try again.';
+      setGenError(message);
+      toast.error(message);
     }
     setGenerating(false);
   };
